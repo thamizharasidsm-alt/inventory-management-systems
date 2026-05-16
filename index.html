@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-container">
+<nav class="sidebar" id="sidebar">
+<div class="sidebar-header">
+<div class="logo"><i class="fas fa-boxes-stacked"></i><span>InvManager</span></div>
+</div>
+<ul class="nav-links">
+<li><a href="#" class="nav-link active" data-page="dashboard"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></li>
+<li><a href="#" class="nav-link" data-page="products"><i class="fas fa-box-open"></i><span>Products</span></a></li>
+<li><a href="#" class="nav-link" data-page="suppliers"><i class="fas fa-truck"></i><span>Suppliers</span></a></li>
+<li><a href="#" class="nav-link" data-page="settings"><i class="fas fa-cog"></i><span>Settings</span></a></li>
+</ul>
+</nav>
+<main class="main-content">
+<header class="topbar">
+<div class="topbar-left">
+<button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+<h2 id="pageTitle">Dashboard</h2>
+</div>
+<div class="topbar-right">
+<div class="notification-badge" id="notificationBtn" style="cursor: pointer;" title="View Notifications"><i class="fas fa-bell"></i><span class="badge" id="lowStockBadge">0</span></div>
+<div class="user-info" id="adminProfileBtn" style="cursor: pointer;" title="View Admin Profile"><i class="fas fa-user-circle"></i><span>Admin</span></div>
+</div>
+</header>
+
+<section class="page" id="page-dashboard">
+<div class="summary-cards">
+<div class="summary-card card-blue"><div class="card-icon"><i class="fas fa-box"></i></div><div class="card-info"><h3>Total Products</h3><p id="totalProducts">0</p></div></div>
+<div class="summary-card card-green"><div class="card-icon"><i class="fas fa-layer-group"></i></div><div class="card-info"><h3>Total Stock</h3><p id="totalStock">0</p></div></div>
+<div class="summary-card card-orange" id="lowStockCard" style="cursor: pointer;" title="Click to view low stock products"><div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="card-info"><h3>Low Stock</h3><p id="lowStock">0</p></div></div>
+<div class="summary-card card-purple"><div class="card-icon"><i class="fas fa-users"></i></div><div class="card-info"><h3>Suppliers</h3><p id="totalSuppliers">0</p></div></div>
+</div>
+
+<div class="charts-container">
+<div class="chart-card"><h3><i class="fas fa-chart-pie"></i> Products per Category</h3><canvas id="pieChart"></canvas></div>
+<div class="chart-card"><h3><i class="fas fa-chart-bar"></i> Category Stock Levels</h3><canvas id="barChart"></canvas></div>
+</div>
+
+<div class="recent-section" id="lowStockSection"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;"><h3><i class="fas fa-exclamation-circle"></i> Low Stock Alerts (Below 20 units)</h3><button class="btn btn-success" id="downloadLowStockExcel"><i class="fas fa-file-excel"></i> Download Excel</button></div>
+<div class="table-container"><table><thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>Supplier</th></tr></thead><tbody id="lowStockTableBody"></tbody></table></div>
+</div>
+</section>
+
+<section class="page" id="page-products" style="display:none">
+<div class="products-toolbar">
+<div class="category-tabs" id="categoryTabsContainer">
+<!-- Populated by JS -->
+</div>
+<div class="search-sort">
+<div class="search-box"><i class="fas fa-search"></i><input type="text" id="productSearch" placeholder="Search products..."></div>
+<select id="sortSelect"><option value="name-asc">Name A to Z</option><option value="name-desc">Name Z to A</option><option value="price-asc">Price Low to High</option><option value="price-desc">Price High to Low</option><option value="stock-asc">Stock Low to High</option><option value="stock-desc">Stock High to Low</option></select>
+</div>
+</div>
+<div class="products-header"><h3>Products List (<span id="productCount">0</span>)</h3><div><button class="btn btn-success" id="downloadProductsExcel" style="margin-right: 10px;"><i class="fas fa-file-excel"></i> Download Excel</button><button class="btn btn-primary" id="addProductBtn"><i class="fas fa-plus"></i> Add Product</button></div></div>
+<div class="table-container" style="overflow-x: auto;"><table><thead><tr><th>SKU</th><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Units</th><th>Supplier</th><th>Mfg Date</th><th>Exp Date</th><th>Barcode</th><th>Invoice No</th><th>Actions</th></tr></thead><tbody id="productTableBody"></tbody></table></div>
+<div class="empty-state" id="productsEmptyState" style="display:none"><i class="fas fa-box-open"></i><p>No products found matching your criteria.</p></div>
+</section>
+
+<section class="page" id="page-suppliers" style="display:none">
+<div class="suppliers-header"><h3>Suppliers</h3><button class="btn btn-primary" id="addSupplierBtn"><i class="fas fa-plus"></i> Add Supplier</button></div>
+<div class="table-container"><table><thead><tr><th>ID</th><th>Supplier Name</th><th>Contact</th><th>Email</th><th>Phone</th><th>Address</th><th>Items</th><th>Actions</th></tr></thead><tbody id="supplierTableBody"></tbody></table></div>
+<div class="empty-state" id="suppliersEmptyState" style="display:none"><i class="fas fa-truck"></i><p>No suppliers added yet.</p></div>
+</section>
+
+<section class="page" id="page-settings" style="display:none">
+<div class="settings-container">
+
+  <!-- Header -->
+  <div class="settings-hero">
+    <div class="settings-hero-icon"><i class="fas fa-cog"></i></div>
+    <div>
+      <h2>Settings</h2>
+      <p>Customize your inventory system preferences</p>
+    </div>
+  </div>
+
+  <!-- Appearance Section -->
+  <div class="settings-section">
+    <div class="settings-section-header">
+      <i class="fas fa-palette"></i>
+      <h3>Appearance</h3>
+    </div>
+    <div class="settings-section-body">
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <span class="settings-label">Theme Mode</span>
+          <span class="settings-desc">Choose between light and dark interface</span>
+        </div>
+        <div class="theme-toggle-group">
+          <button class="theme-btn" id="lightModeBtn" title="Switch to Light Mode">
+            <i class="fas fa-sun"></i> Light
+          </button>
+          <button class="theme-btn" id="darkModeBtn" title="Switch to Dark Mode">
+            <i class="fas fa-moon"></i> Dark
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Section -->
+  <div class="settings-section">
+    <div class="settings-section-header">
+      <i class="fas fa-database"></i>
+      <h3>Data Management</h3>
+    </div>
+    <div class="settings-section-body">
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <span class="settings-label">Reset All Data</span>
+          <span class="settings-desc">Restore all products, suppliers and settings to their default values</span>
+        </div>
+        <button class="btn btn-danger" id="resetDataBtn">
+          <i class="fas fa-rotate-left"></i> Reset Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Mode Indicator -->
+  <div class="settings-current-mode" id="currentModeIndicator">
+    <i class="fas fa-circle-check"></i>
+    <span id="currentModeText">Light Mode is active</span>
+  </div>
+
+</div>
+</section>
+</main>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal-overlay" id="productModal">
+<div class="modal"><div class="modal-header"><h3 id="productModalTitle">Add Product</h3><button class="modal-close" id="closeProductModal">&times;</button></div>
+<form id="productForm" novalidate>
+<input type="hidden" id="productOriginalSku">
+<div class="form-row">
+<div class="form-group"><label for="productSku">SKU Number *</label><input type="text" id="productSku" placeholder="e.g. SKU1001" required><span class="error-msg" id="productSkuError"></span></div>
+<div class="form-group"><label for="productName">Product Name *</label><input type="text" id="productName" placeholder="Enter product name" required><span class="error-msg" id="productNameError"></span></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label for="productCategory">Category *</label><select id="productCategory" required><option value="">Select Category</option></select><input type="text" id="newCategoryInput" placeholder="Enter new category" style="display:none; margin-top:5px;"><span class="error-msg" id="productCategoryError"></span></div>
+<div class="form-group"><label for="productPrice">Price (&#8377;) *</label><input type="number" id="productPrice" placeholder="0.00" min="0.01" step="0.01" required><span class="error-msg" id="productPriceError"></span></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label for="productStock">Stock *</label><input type="number" id="productStock" placeholder="0" min="0" required><span class="error-msg" id="productStockError"></span></div>
+<div class="form-group"><label for="productUnits">Units *</label><select id="productUnits" required><option value="pcs">Pieces (pcs)</option><option value="kg">Kilograms (kg)</option><option value="g">Grams (g)</option><option value="l">Liters (L)</option><option value="ml">Milliliters (ml)</option><option value="box">Boxes</option></select><span class="error-msg" id="productUnitsError"></span></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label for="productMfgDate">Mfg Date *</label><input type="date" id="productMfgDate" required><span class="error-msg" id="productMfgDateError"></span></div>
+<div class="form-group"><label for="productExpDate">Expiry Date *</label><input type="date" id="productExpDate" required><span class="error-msg" id="productExpDateError"></span></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label for="productBarcode">Barcode</label><input type="text" id="productBarcode" placeholder="Scan or enter barcode"></div>
+<div class="form-group"><label for="productInvoiceNo">Invoice Number</label><input type="text" id="productInvoiceNo" placeholder="Invoice #"></div>
+</div>
+<div class="form-group"><label for="productSupplier">Supplier *</label><select id="productSupplier" required><option value="">Select Supplier</option><span class="error-msg" id="productSupplierError"></span></select></div>
+<div class="form-group"><label for="productDescription">Description</label><textarea id="productDescription" placeholder="Optional"></textarea></div>
+<div class="modal-actions"><button type="button" class="btn btn-secondary" id="cancelProduct">Cancel</button><button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save</button></div>
+</form></div></div>
+
+<!-- VENDOR MODAL -->
+<div class="modal-overlay" id="supplierModal">
+<div class="modal"><div class="modal-header"><h3 id="supplierModalTitle">Add Supplier</h3><button class="modal-close" id="closeSupplierModal">&times;</button></div>
+<form id="supplierForm" novalidate>
+<input type="hidden" id="supplierId">
+<div class="form-row">
+<div class="form-group"><label for="supplierCompany">Supplier Name *</label><input type="text" id="supplierCompany" placeholder="Supplier name" required><span class="error-msg" id="supplierCompanyError"></span></div>
+<div class="form-group"><label for="supplierName">Contact Name *</label><input type="text" id="supplierName" placeholder="Contact name" required><span class="error-msg" id="supplierNameError"></span></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label for="supplierEmail">Email *</label><input type="email" id="supplierEmail" placeholder="email@company.com" required><span class="error-msg" id="supplierEmailError"></span></div>
+<div class="form-group"><label for="supplierPhone">Phone *</label><input type="tel" id="supplierPhone" placeholder="+91 XXXXX XXXXX" required><span class="error-msg" id="supplierPhoneError"></span></div>
+</div>
+<div class="form-group"><label for="supplierAddress">Address *</label><textarea id="supplierAddress" placeholder="Full address" required></textarea><span class="error-msg" id="supplierAddressError"></span></div>
+<div class="form-group"><label for="supplierProducts">Products Supplied</label><input type="text" id="supplierProducts" placeholder="Rice, Wheat, Oil (comma-separated)"></div>
+<div class="modal-actions"><button type="button" class="btn btn-secondary" id="cancelSupplier">Cancel</button><button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save</button></div>
+</form></div></div>
+
+<!-- UPDATE STOCK MODAL -->
+<div class="modal-overlay" id="updateStockModal">
+<div class="modal modal-sm"><div class="modal-header"><h3>Update Stock Quantity</h3><button class="modal-close" id="closeUpdateStock">&times;</button></div>
+<div id="updateStockContent" style="padding: 15px;">
+    <input type="hidden" id="updateStockSku">
+    <p style="margin-bottom: 15px;">Product: <strong id="updateStockName" style="color:var(--primary);"></strong></p>
+    <div class="form-group">
+        <label for="newStockQuantity">New Stock Quantity *</label>
+        <input type="number" id="newStockQuantity" min="0" required>
+    </div>
+</div>
+<div class="modal-actions"><button class="btn btn-secondary" id="cancelUpdateStockBtn">Cancel</button><button class="btn btn-primary" id="saveUpdateStockBtn"><i class="fas fa-save"></i> Update</button></div></div></div>
+
+<!-- CONFIRM DELETE MODAL -->
+<div class="modal-overlay" id="confirmModal">
+<div class="modal modal-sm"><div class="modal-header"><h3>Confirm Delete</h3><button class="modal-close" id="closeConfirm">&times;</button></div>
+<p id="confirmMessage">Are you sure?</p>
+<div class="modal-actions"><button class="btn btn-secondary" id="cancelDelete">Cancel</button><button class="btn btn-danger" id="confirmDeleteBtn">Delete</button></div></div></div>
+
+<!-- ADMIN PROFILE MODAL -->
+<div class="modal-overlay" id="adminModal">
+<div class="modal modal-sm"><div class="modal-header"><h3>Admin Profile</h3><button class="modal-close" id="closeAdminModal">&times;</button></div>
+<div id="adminProfileContent" style="text-align:center; padding: 15px;">
+    <div style="width:80px;height:80px;border-radius:50%;background:#e0e7ff;display:inline-flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--primary);margin-bottom:15px; overflow:hidden;">
+        <i class="fas fa-user-tie"></i>
+    </div>
+    <h3 style="margin-bottom:5px; color:var(--text-dark);">Admin User</h3>
+    <p style="color:var(--primary); font-weight:bold; margin-bottom:15px;">System Administrator</p>
+    <div style="text-align:left; background:#f8fafc; padding:15px; border-radius:8px;">
+        <p style="margin-bottom:10px;"><i class="fas fa-phone" style="width:25px; color:var(--text-light);"></i> <strong>+91 98765 43210</strong></p>
+        <p style="margin-bottom:10px;"><i class="fas fa-envelope" style="width:25px; color:var(--text-light);"></i> <strong>admin@invmanager.com</strong></p>
+        <p><i class="fas fa-map-marker-alt" style="width:25px; color:var(--text-light);"></i> <strong>Chennai, India</strong></p>
+    </div>
+</div>
+<div class="modal-actions"><button class="btn btn-secondary" id="closeAdminBtn">Close</button></div></div></div>
+
+<!-- NOTIFICATION MODAL -->
+<div class="modal-overlay" id="notificationModal">
+<div class="modal"><div class="modal-header"><h3><i class="fas fa-bell" style="color:#f59e0b"></i> Low Stock Alerts</h3><button class="modal-close" id="closeNotificationModal">&times;</button></div>
+<div class="table-container" style="max-height: 400px; overflow-y: auto; margin: 15px 0;">
+    <table><thead><tr><th>Product</th><th>Category</th><th>Stock</th></tr></thead><tbody id="notificationTableBody"></tbody></table>
+</div>
+<div class="modal-actions"><button class="btn btn-secondary" id="closeNotificationBtn">Close</button></div></div></div>
+
+<div class="toast" id="toast"></div>
+<script src="js/script.js"></script>
+</body>
+</html>
